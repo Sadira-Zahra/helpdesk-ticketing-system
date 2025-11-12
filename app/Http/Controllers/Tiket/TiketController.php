@@ -130,4 +130,19 @@ class TiketController extends Controller
             ], 404);
         }
     }
+
+    public function assign(Request $request, $id) {
+    $tiket = Tiket::findOrFail($id);
+    $tiket->teknisi_id = $request->teknisi_id;
+    $tiket->save();
+    return redirect()->back()->with('success', 'Teknisi berhasil di-assign');
+}
+
+public function reopen($id) {
+    $tiket = Tiket::findOrFail($id);
+    $tiket->status = 'open';
+    $tiket->save();
+    return redirect()->back()->with('success', 'Tiket berhasil dibuka kembali');
+}
+
 }

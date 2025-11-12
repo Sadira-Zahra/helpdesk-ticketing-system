@@ -63,9 +63,31 @@
                                     </span>
                                 </td>
                                 <td>
+                                    <!-- Detail Button -->
                                     <button type="button" class="btn btn-sm btn-info" onclick="showDetail({{ $tiket->id }})" title="Detail">
                                         <i class="fas fa-eye"></i>
                                     </button>
+
+                                    @if(auth()->user()->role == 'administrator')
+                                        <!-- Assign Teknisi Button -->
+                                        @if($tiket->status != 'close')
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#assignTeknisiModal{{ $tiket->id }}" 
+                                                    title="Assign Teknisi">
+                                                <i class="fas fa-user-plus"></i>
+                                            </button>
+                                        @endif
+
+                                        <!-- Reopen Ticket Button (only for closed tickets) -->
+                                        @if($tiket->status == 'close')
+                                            <button type="button" class="btn btn-sm btn-warning" 
+                                                    onclick="reopenTicket({{ $tiket->id }})" 
+                                                    title="Buka Kembali">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        @endif
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -514,4 +536,70 @@
         new bootstrap.Modal(document.getElementById('createTiketModal')).show();
     @endif
 </script>
+
+    <!-- Modal Assign Teknisi -->
+    @foreach($tikets as $tiket)
+    <div class="modal fade" id="assignTeknisiModal{{ $tiket->id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Assign Teknisi - {{ $tiket->nomor }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ route('tiket.assign', $tiket->id) }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Pilih Teknisi</label>
+                            <select name="teknisi_id" class="form-select" required>
+                                <option value="">-- Pilih Teknisi --</option>
+                                @foreach($teknisis as $teknisi)
+                                    <option value="{{ $teknisi->id }}" 
+                                            {{ $tiket->teknisi_id == $teknisi->id ? 'selected' : '' }}>
+                                        {{ $teknisi->nama }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Assign</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endforeach
+
+
+<script>
+function reopenTicket(ticketId) {
+    if (confirm('Apakah Anda yakin ingin membuka kembali tiket ini?')) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/tiket/${ticketId}/reopen`;
+
+        // CSRF token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '_token';
+        csrfInput.value = '{{ csrf_token() }}';
+        form.appendChild(csrfInput);
+
+        // Method spoofing for PUT
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = '_method';
+        methodInput.value = 'PUT';
+        form.appendChild(methodInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
 @endsection

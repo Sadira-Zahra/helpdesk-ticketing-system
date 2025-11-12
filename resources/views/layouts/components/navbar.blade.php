@@ -209,12 +209,12 @@
     <div class="navbar-left">
         <!-- Toggle Sidebar (Desktop) -->
         <button type="button" class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
-            <i class="fas fa-bars"></i>
+            <i class="fa fa-bars"></i>
         </button>
 
         <!-- Hamburger Menu (Mobile) -->
         <button type="button" class="hamburger-btn" id="hamburgerBtn" title="Toggle Sidebar">
-            <i class="fas fa-bars"></i>
+            <i class="fa fa-bars"></i>
         </button>
 
         <h1 class="navbar-title">@yield('page-title', 'Dashboard')</h1>
@@ -227,6 +227,8 @@
                 <strong>{{ $user->nama }}</strong>
                 <small>{{ ucfirst($user->role) }}</small>
             </div>
+
+            
         </div>
     </div>
 </div>
@@ -235,8 +237,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         const userMenuBtn = document.getElementById('userMenuBtn');
         const userDropdown = document.getElementById('userDropdown');
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const sidebar = document.getElementById('sidebar');
 
         // Toggle User Menu
         if (userMenuBtn) {
@@ -254,12 +254,5 @@
                 userDropdown.classList.remove('show');
             }
         });
-
-        // Hamburger menu untuk mobile
-        if (hamburgerBtn) {
-            hamburgerBtn.addEventListener('click', function() {
-                sidebar.classList.toggle('collapsed');
-            });
-        }
     });
 </script>
