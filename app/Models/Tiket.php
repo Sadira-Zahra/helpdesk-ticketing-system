@@ -10,6 +10,7 @@ class Tiket extends Model
     use HasFactory;
 
     protected $table = 'tiket';
+    
 
     protected $fillable = [
         'user_id',

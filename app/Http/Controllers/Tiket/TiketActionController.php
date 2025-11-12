@@ -2,272 +2,263 @@
 
 namespace App\Http\Controllers\Tiket;
 
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\Tiket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+
+// Import Notification Classes
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\TicketAssignedNotification;
+use App\Notifications\TicketRejectedNotification;
+use App\Notifications\TicketCompletedNotification;
 
 class TiketActionController extends Controller
 {
+    /**
+     * Assign tiket ke teknisi
+     */
     public function assign(Request $request, $id)
-    {
-        $user = Auth::user();
-
-        if (!in_array($user->role, ['admin', 'administrator'])) {
-            return redirect()->back()->with('error', 'Anda tidak memiliki akses!');
-        }
-
-        try {
-            $validated = $request->validate([
-                'teknisi_id' => 'required|exists:users,id',
-                'catatan' => 'nullable|string',
-            ]);
-
-            $tiket = Tiket::findOrFail($id);
-            $teknisi = \App\Models\User::where('id', $validated['teknisi_id'])
-                ->where('role', 'teknisi')
-                ->first();
-
-            if (!$teknisi) {
-                return redirect()->back()->with('error', 'User yang dipilih bukan teknisi!');
-            }
-
-            // VALIDASI DEPARTEMEN
-            if ($user->role === 'admin') {
-                if ($teknisi->departemen_id !== $tiket->departemen_id) {
-                    return redirect()->back()->with('error', 'Anda hanya bisa assign teknisi dari departemen yang sama!');
-                }
-            }
-
-            $tiket->update([
-                'teknisi_id' => $validated['teknisi_id'],
-                'catatan' => $validated['catatan'],
-                'status' => 'pending',
-            ]);
-
-            return redirect()->route('tiket.index')
-                ->with('success', 'Tiket berhasil ditugaskan ke ' . $teknisi->nama);
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
-        }
-    }
-
-    public function updateStatus(Request $request, $id)
-    {
-        $user = Auth::user();
-
-        try {
-            $validated = $request->validate([
-                'status' => 'required|in:open,pending,progress,finish,close',
-                'solusi' => 'nullable|string',
-            ]);
-
-            $tiket = Tiket::findOrFail($id);
-
-            if ($user->role === 'user' && $validated['status'] !== 'close') {
-                return redirect()->back()->with('error', 'User hanya bisa close tiket!');
-            }
-
-            if ($user->role === 'teknisi') {
-                if (!in_array($validated['status'], ['pending', 'progress', 'finish'])) {
-                    return redirect()->back()->with('error', 'Teknisi tidak bisa mengubah status ke ' . $validated['status']);
-                }
-                if ($tiket->teknisi_id !== $user->id) {
-                    return redirect()->back()->with('error', 'Anda tidak bisa mengubah tiket ini!');
-                }
-            }
-
-            $updateData = ['status' => $validated['status']];
-
-            if ($validated['status'] === 'finish') {
-                $updateData['solusi'] = $validated['solusi'];
-                $updateData['tanggal_selesai'] = Carbon::now();
-            }
-
-            $tiket->update($updateData);
-
-            return redirect()->route('tiket.index')
-                ->with('success', 'Status tiket berhasil diubah menjadi: ' . $validated['status']);
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
-        }
-    }
-
-    public function decline($id)
-    {
-        $user = Auth::user();
-
-        if ($user->role !== 'teknisi') {
-            return redirect()->back()->with('error', 'Hanya teknisi yang bisa menolak tiket!');
-        }
-
-        try {
-            $tiket = Tiket::findOrFail($id);
-
-            if ($tiket->teknisi_id !== $user->id) {
-                return redirect()->back()->with('error', 'Anda tidak bisa menolak tiket ini!');
-            }
-
-            if ($tiket->status !== 'pending') {
-                return redirect()->back()->with('error', 'Hanya tiket pending yang bisa ditolak!');
-            }
-
-            $tiket->update([
-                'teknisi_id' => null,
-                'catatan' => null,
-                'status' => 'open',
-            ]);
-
-            return redirect()->route('tiket.index')
-                ->with('success', 'Tiket berhasil ditolak');
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
-        }
-    }
-
-    public function unassign($id)
-    {
-        $user = Auth::user();
-
-        if (!in_array($user->role, ['admin', 'administrator'])) {
-            return redirect()->back()->with('error', 'Anda tidak memiliki akses!');
-        }
-
-        try {
-            $tiket = Tiket::findOrFail($id);
-
-            $tiket->update([
-                'teknisi_id' => null,
-                'catatan' => null,
-                'status' => 'open',
-            ]);
-
-            return redirect()->route('tiket.index')
-                ->with('success', 'Tiket berhasil di-unassign');
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Teknisi accept ticket - Status pending → progress
-     */
-    public function accept($id)
-    {
-        $user = Auth::user();
-
-        if ($user->role !== 'teknisi') {
-            return redirect()->back()->with('error', 'Hanya teknisi yang bisa menerima tiket!');
-        }
-
-        try {
-            $tiket = Tiket::findOrFail($id);
-
-            if ($tiket->teknisi_id !== $user->id) {
-                return redirect()->back()->with('error', 'Tiket ini bukan untuk Anda!');
-            }
-
-            if ($tiket->status !== 'pending') {
-                return redirect()->back()->with('error', 'Hanya tiket pending yang bisa diterima!');
-            }
-
-            $tiket->update(['status' => 'progress']);
-
-            return redirect()->route('tiket.index')
-                ->with('success', 'Tiket diterima, status berubah menjadi progress');
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Teknisi reject ticket dengan alasan
-     */
-    public function reject(Request $request, $id)
 {
-    $user = Auth::user();
-
-    if ($user->role !== 'teknisi') {
-        return redirect()->back()->with('error', 'Hanya teknisi yang bisa menolak tiket!');
-    }
-
-    $validated = $request->validate([
-        'catatan' => 'required|string',
-    ], [
-        'catatan.required' => 'Alasan penolakan harus diisi',
-    ]);
-
+    DB::beginTransaction();
+    
     try {
-        $tiket = Tiket::findOrFail($id);
-
-        if ($tiket->teknisi_id !== $user->id) {
-            return redirect()->back()->with('error', 'Tiket ini bukan untuk Anda!');
-        }
-
-        if ($tiket->status !== 'pending') {
-            return redirect()->back()->with('error', 'Hanya tiket pending yang bisa ditolak!');
-        }
-
-        // Simpan alasan penolakan di kolom catatan, kembali ke status open
-        // Teknisi di-null agar admin bisa assign ulang
-        $tiket->update([
-            'status' => 'open',
-            'teknisi_id' => null,
-            'catatan' => $validated['catatan'], // Alasan penolakan
+        $validated = $request->validate([
+            'teknisi_id' => 'required|exists:users,id',
         ]);
 
-        return redirect()->route('tiket.index')
-            ->with('success', 'Tiket ditolak. Admin akan melihat alasan penolakan Anda.');
+        // Load relasi untuk email
+        $tiket = Tiket::with(['user', 'departemen', 'urgency'])->findOrFail($id);
+        
+        // Validasi teknisi (kecuali administrator)
+        $user = Auth::user();
+        if ($user->role !== 'administrator') {
+            $teknisi = User::where('id', $validated['teknisi_id'])
+                ->where('departemen_id', $tiket->departemen_id)
+                ->where('role', 'teknisi')
+                ->first();
+                
+            if (!$teknisi) {
+                throw new \Exception('Teknisi tidak ditemukan atau tidak sesuai departemen');
+            }
+        }
+
+        // Get teknisi untuk message
+        $teknisi = User::findOrFail($validated['teknisi_id']);
+
+        // Update tiket
+        $tiket->teknisi_id = $validated['teknisi_id'];
+        $tiket->status = 'progress';
+        $tiket->save();
+
+        // Load relasi teknisi
+        $tiket->load('teknisi');
+
+        DB::commit();
+
+        // Kirim email notifikasi
+        if ($teknisi->email) {
+            try {
+                Notification::send([$teknisi], new TicketAssignedNotification($tiket));
+            } catch (\Exception $e) {
+                Log::error('Failed to send assign notification email: ' . $e->getMessage());
+            }
+        }
+
+        // ✅ PENTING: Return dengan session success
+        return redirect()->back()
+            ->with('success', 'Tiket berhasil di-assign ke teknisi ' . $teknisi->name . ' ✅');
 
     } catch (\Exception $e) {
-        return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        DB::rollback();
+        
+        return redirect()->back()
+            ->with('error', 'Gagal assign teknisi: ' . $e->getMessage());
     }
 }
 
 
     /**
-     * Teknisi finish ticket - Status progress → finish
+     * Unassign teknisi dari tiket
+     */
+    public function unassign($id)
+    {
+        DB::beginTransaction();
+        
+        try {
+            $tiket = Tiket::findOrFail($id);
+            
+            $tiket->teknisi_id = null;
+            $tiket->status = 'open';
+            $tiket->save();
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Teknisi berhasil di-unassign dari tiket');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return redirect()->back()
+                ->with('error', 'Gagal unassign teknisi: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update status tiket
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        DB::beginTransaction();
+        
+        try {
+            $validated = $request->validate([
+                'status' => 'required|in:open,progress,pending,finish,closed',
+            ]);
+
+            $tiket = Tiket::findOrFail($id);
+            $tiket->status = $validated['status'];
+            $tiket->save();
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Status tiket berhasil diupdate');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return redirect()->back()
+                ->with('error', 'Gagal update status: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Teknisi accept tiket
+     */
+    public function accept($id)
+    {
+        DB::beginTransaction();
+        
+        try {
+            $tiket = Tiket::findOrFail($id);
+            
+            // Validasi: hanya teknisi yang ditugaskan
+            if (Auth::id() !== $tiket->teknisi_id) {
+                throw new \Exception('Anda tidak memiliki akses untuk accept tiket ini');
+            }
+
+            $tiket->status = 'progress';
+            $tiket->save();
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Tiket berhasil diterima dan sedang dikerjakan');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return redirect()->back()
+                ->with('error', 'Gagal accept tiket: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Teknisi reject tiket
+     */
+    public function reject(Request $request, $id)
+    {
+        DB::beginTransaction();
+        
+        try {
+            $validated = $request->validate([
+                'catatan' => 'required|string|max:500',
+            ]);
+
+            // Load relasi untuk email
+            $tiket = Tiket::with(['user', 'departemen', 'urgency', 'teknisi'])->findOrFail($id);
+            
+            // Validasi: hanya teknisi yang ditugaskan
+            if (Auth::id() !== $tiket->teknisi_id) {
+                throw new \Exception('Anda tidak memiliki akses untuk reject tiket ini');
+            }
+
+            $tiket->status = 'pending';
+            $tiket->catatan = 'DITOLAK: ' . $validated['catatan'];
+            $tiket->teknisi_id = null;
+            $tiket->save();
+
+            DB::commit();
+
+            // Kirim email ke admin
+            $admins = User::where('role', 'admin')
+                ->where('departemen_id', $tiket->departemen_id)
+                ->get();
+
+            if ($admins->count() > 0) {
+                Notification::send($admins, new TicketRejectedNotification($tiket, $validated['catatan']));
+            }
+
+            return redirect()->back()
+                ->with('success', 'Tiket berhasil ditolak dan notifikasi telah dikirim ke Admin');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            
+            return redirect()->back()
+                ->with('error', 'Gagal reject tiket: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Teknisi finish tiket
      */
     public function finish(Request $request, $id)
     {
-        $user = Auth::user();
-
-        if ($user->role !== 'teknisi') {
-            return redirect()->back()->with('error', 'Hanya teknisi yang bisa menyelesaikan tiket!');
-        }
-
-        $validated = $request->validate([
-            'solusi' => 'nullable|string',
-        ]);
-
+        DB::beginTransaction();
+        
         try {
-            $tiket = Tiket::findOrFail($id);
-
-            if ($tiket->teknisi_id !== $user->id) {
-                return redirect()->back()->with('error', 'Tiket ini bukan untuk Anda!');
-            }
-
-            if ($tiket->status !== 'progress') {
-                return redirect()->back()->with('error', 'Hanya tiket progress yang bisa diselesaikan!');
-            }
-
-            $tiket->update([
-                'status' => 'finish',
-                'solusi' => $validated['solusi'],
-                'tanggal_selesai' => Carbon::now(),
+            $validated = $request->validate([
+                'solusi' => 'required|string',
             ]);
 
-            return redirect()->route('tiket.index')
-                ->with('success', 'Tiket berhasil diselesaikan!');
+            // Load relasi untuk email
+            $tiket = Tiket::with(['user', 'departemen', 'urgency', 'teknisi'])->findOrFail($id);
+            
+            // Validasi: hanya teknisi yang ditugaskan
+            if (Auth::id() !== $tiket->teknisi_id) {
+                throw new \Exception('Anda tidak memiliki akses untuk menyelesaikan tiket ini');
+            }
+
+            $tiket->status = 'finish';
+            $tiket->solusi = $validated['solusi'];
+            $tiket->tanggal_selesai = now();
+            $tiket->save();
+
+            DB::commit();
+
+            // Kirim email ke admin
+            $admins = User::where('role', 'admin')
+                ->where('departemen_id', $tiket->departemen_id)
+                ->get();
+
+            if ($admins->count() > 0) {
+                Notification::send($admins, new TicketCompletedNotification($tiket));
+            }
+
+            return redirect()->back()
+                ->with('success', 'Tiket berhasil diselesaikan dan notifikasi telah dikirim ke Admin');
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            DB::rollback();
+            
+            return redirect()->back()
+                ->with('error', 'Gagal menyelesaikan tiket: ' . $e->getMessage());
         }
     }
 }

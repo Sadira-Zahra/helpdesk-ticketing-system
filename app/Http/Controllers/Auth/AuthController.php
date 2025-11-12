@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 
 class AuthController extends Controller
 {
+    
     /**
      * Show login user page
      */

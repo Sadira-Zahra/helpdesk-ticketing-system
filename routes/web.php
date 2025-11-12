@@ -179,7 +179,15 @@ Route::middleware(['auth'])->group(function () {
     // Laporan Tiket routes
     Route::get('tiket-laporan', [LaporanTiketController::class, 'index'])->name('tiket.laporan');
 
- 
+ Route::put('/tiket/{id}/assign', [TiketController::class, 'assign'])->name('tiket.assign');
+ Route::put('/tiket/{id}/reopen', [TiketController::class, 'reopen'])->name('tiket.reopen');
+
+  Route::post('/tiket/{id}/reject', [TiketController::class, 'reject'])->name('tiket.reject');
+    Route::post('/tiket/{id}/complete', [TiketController::class, 'complete'])->name('tiket.complete');
+    Route::post('/tiket/{id}/close', [TiketController::class, 'close'])->name('tiket.close');
+    Route::delete('/tiket/{id}', [TiketController::class, 'destroy'])->name('tiket.destroy');
+
+
     // Route untuk controller lain (uncomment saat sudah dibuat)
     // Route::resource('teknisi', TeknisiController::class);
     // Route::resource('user', UserController::class);

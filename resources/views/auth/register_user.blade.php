@@ -286,6 +286,7 @@
 <body>
     <div class="register-wrapper">
         <div class="register-card">
+            <!-- Header -->
             <div class="register-header">
                 <div class="register-logo">
                     <img src="{{ $logo }}" alt="Logo">
@@ -294,8 +295,9 @@
                 <p>Buat akun baru Anda</p>
             </div>
 
+            <!-- Alert Error -->
             @if ($errors->any())
-                <div class="alert alert-danger">
+                <div class="alert">
                     <i class="fas fa-exclamation-circle"></i>
                     <div>
                         @foreach ($errors->all() as $error)
@@ -305,9 +307,11 @@
                 </div>
             @endif
 
+            <!-- Form Register -->
             <form method="POST" action="{{ route('register_user.post') }}">
                 @csrf
 
+                <!-- NIK & Username -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="nik">NIK</label>
@@ -329,37 +333,17 @@
                     </div>
 
                     <div class="form-group">
-        <label for="username">Username</label>
-        <input 
-            type="text" 
-            id="username" 
-            name="username"
-            class="@error('username') is-invalid @enderror"
-            value="{{ old('username') }}"
-            placeholder="Username"
-            required
-        >
-        @error('username')
-            <div class="error-message">
-                <i class="fas fa-times-circle"></i>
-                {{ $message }}
-            </div>
-        @enderror
-    </div>
-</div>
-
-                    <div class="form-group">
-                        <label for="nama">Nama Lengkap</label>
+                        <label for="username">Username</label>
                         <input 
                             type="text" 
-                            id="nama" 
-                            name="nama"
-                            class="@error('nama') is-invalid @enderror"
-                            value="{{ old('nama') }}"
-                            placeholder="Nama"
+                            id="username" 
+                            name="username"
+                            class="@error('username') is-invalid @enderror"
+                            value="{{ old('username') }}"
+                            placeholder="Username"
                             required
                         >
-                        @error('nama')
+                        @error('username')
                             <div class="error-message">
                                 <i class="fas fa-times-circle"></i>
                                 {{ $message }}
@@ -368,6 +352,27 @@
                     </div>
                 </div>
 
+                <!-- Nama Lengkap -->
+                <div class="form-group form-row-full">
+                    <label for="nama">Nama Lengkap</label>
+                    <input 
+                        type="text" 
+                        id="nama" 
+                        name="nama"
+                        class="@error('nama') is-invalid @enderror"
+                        value="{{ old('nama') }}"
+                        placeholder="Nama Lengkap"
+                        required
+                    >
+                    @error('nama')
+                        <div class="error-message">
+                            <i class="fas fa-times-circle"></i>
+                            {{ $message }}
+                        </div>
+                    @enderror
+                </div>
+
+                <!-- Email -->
                 <div class="form-group form-row-full">
                     <label for="email">Email</label>
                     <input 
@@ -387,16 +392,17 @@
                     @enderror
                 </div>
 
+                <!-- No. Telpon & Departemen -->
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="no_telepon">No. Telpon</label>
+                        <label for="no_telepon">No. Telepon</label>
                         <input 
                             type="tel" 
                             id="no_telepon" 
                             name="no_telepon"
                             class="@error('no_telepon') is-invalid @enderror"
                             value="{{ old('no_telepon') }}"
-                            placeholder="Nomor Telpon"
+                            placeholder="08xxxxxxxxxx"
                         >
                         @error('no_telepon')
                             <div class="error-message">
@@ -430,6 +436,7 @@
                     </div>
                 </div>
 
+                <!-- Password & Confirm Password -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="password">Password</label>
@@ -459,49 +466,51 @@
                                 type="password" 
                                 id="password_confirmation" 
                                 name="password_confirmation"
-                                class="@error('password_confirmation') is-invalid @enderror"
                                 placeholder="Ulangi Password"
                                 required
                             >
                             <i class="fas fa-eye toggle-password" onclick="togglePassword('password_confirmation')"></i>
                         </div>
-                        @error('password_confirmation')
-                            <div class="error-message">
-                                <i class="fas fa-times-circle"></i>
-                                {{ $message }}
-                            </div>
-                        @enderror
                     </div>
                 </div>
 
-                <button type="submit" class="register-button">Daftar</button>
+                <!-- Submit Button -->
+                <button type="submit" class="register-button">
+                    <i class="fas fa-user-plus"></i> Daftar
+                </button>
             </form>
 
-            <div class="register-divider">atau</div>
+            <!-- Divider -->
+            <div class="register-divider" data-text="atau"></div>
 
+            <!-- Alternative Login -->
             <div class="other-login">
-                <a href="{{ route('login_user') }}">🔓 Login</a>
-                <a href="{{ route('login_petugas') }}">🔐 Login Petugas</a>
+                <a href="{{ route('login_user') }}">
+                    🔓 Login User
+                </a>
+                <a href="{{ route('login_petugas') }}">
+                    🔐 Login Petugas
+                </a>
             </div>
 
+            <!-- Footer -->
             <div class="register-footer">
                 Kembali ke <a href="{{ route('home') }}">Beranda</a>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script>
-        function togglePassword(fieldId) {
-            const field = document.getElementById(fieldId);
-            const icon = document.querySelector(`[onclick="togglePassword('${fieldId}')"]`);
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling;
             
-            if (field.type === 'password') {
-                field.type = 'text';
+            if (input.type === 'password') {
+                input.type = 'text';
                 icon.classList.remove('fa-eye');
                 icon.classList.add('fa-eye-slash');
             } else {
-                field.type = 'password';
+                input.type = 'password';
                 icon.classList.remove('fa-eye-slash');
                 icon.classList.add('fa-eye');
             }
